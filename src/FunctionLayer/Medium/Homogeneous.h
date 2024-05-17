@@ -1,11 +1,11 @@
-/**
+﻿/**
  * @file Homogeneous.h
  * @author Chenxi Zhou
  * @brief Homogeneous medium
  * @version 0.1
  * @date 2022-09-24
- * 
- * @copyright NJUMeta (c) 2022 
+ *
+ * @copyright NJUMeta (c) 2022
  * www.njumeta.com
  */
 
@@ -26,6 +26,11 @@ public:
 
     virtual Spectrum evalTransmittance(Point3d from,
                                        Point3d dest) const override;
+
+    virtual MediumSampleEvent sampleEvent(Point3d pos,
+                                          Point2d sample) const override;
+
+    virtual Spectrum evalEmittance(Point3d pos) const override;
 
 private:
     //* sigma_s = mAlbedo * mDensity

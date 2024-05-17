@@ -1,4 +1,4 @@
-#include "Homogeneous.h"
+﻿#include "Homogeneous.h"
 #include "FastMath.h"
 
 /// @brief Sample a scattering distance inside the (homogeneous) medium using naive but unbiased sampling strategy (i.e., inverse exponential sampling).
@@ -27,22 +27,20 @@ bool HomogeneousMedium::sampleDistance(MediumSampleRecord *mRec,
         mRec->sigmaS = mSigmaS;
         mRec->tr = evalTransmittance(ray.origin, mRec->scatterPoint);
         // calculate pdf, i.e., sum of $1\n * \sigma_t^i e^{-\sigma_t^i * t}$.
-        mRec->pdf = 0.0;
         for (int i = 0; i < nSpectrumSamples; i++) {
-            mRec->pdf += mSigmaT[i] * fm::exp(-mSigmaT[i] * dist);
+            mRec->pdf[i] += mSigmaT[i] * fm::exp(-mSigmaT[i] * dist);
         }
-        mRec->pdf /= nSpectrumSamples;
         return true;
     } else {
         // sampled a point on object boundary (surface).
         mRec->marchLength = its.t;
+        mRec->sigmaA = mSigmaA;
+        mRec->sigmaS = mSigmaS;
         mRec->tr = evalTransmittance(ray.origin, its.position);
         // calculate discrete probility (instead of continuous probability density), i.e., sum of $1\n * e^{-\sigma_t^i * t_max}$.
-        mRec->pdf = 0.0;
         for (int i = 0; i < nSpectrumSamples; i++) {
-            mRec->pdf += fm::exp(-mSigmaT[i] * its.t);
+            mRec->pdf[i] += fm::exp(-mSigmaT[i] * its.t);
         }
-        mRec->pdf /= nSpectrumSamples;
         return false;
     }
     // * Incomprehensible strategy that discrete probabilities and continuous probabilities share the same responsibility.
@@ -60,4 +58,21 @@ Spectrum HomogeneousMedium::evalTransmittance(Point3d from,
         tr[i] = fm::exp(-mSigmaT[i] * dist);
     }
     return tr;
+}
+
+MediumSampleEvent HomogeneousMedium::sampleEvent(Point3d pos,
+                                                 Point2d sample) const {
+    auto [x, y] = sample;
+    int channelIndex = int(x * nSpectrumSamples);
+
+    if (y < mSigmaA[channelIndex] / mSigmaT[channelIndex]) {
+        return MediumSampleEvent::a;
+    } else {
+        return MediumSampleEvent::s;
+    }
+}
+
+Spectrum HomogeneousMedium::evalEmittance(Point3d pos) const {
+    // TODO
+    return Spectrum{.0};
 }

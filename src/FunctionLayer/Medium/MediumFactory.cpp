@@ -1,8 +1,9 @@
-#include "MediumFactory.h"
+﻿#include "MediumFactory.h"
 #include "Homogeneous.h"
 #include "Heterogeneous.h"
 #include "IsotropicPhase.h"
 #include "Beerslaw.h"
+#include "NullScattering.h"
 
 namespace MediumFactory {
 std::shared_ptr<Medium> LoadMediumFromJson(const Json json) {
@@ -16,8 +17,8 @@ std::shared_ptr<Medium> LoadMediumFromJson(const Json json) {
         return std::make_shared<HomogeneousMedium>(sigmaT, albedo, std::make_shared<IsotropicPhase>());
     } else if (medium_type == "heterogeneous") {
         std::string filepath = getOptional<std::string>(json, "filepath", "default");
-        float sigmaScale = getOptional(json, "sigma_scale", 1.f);
-
+        RGB3 sigma_a = getOptional(json, "sigma_a", RGB3(1.f));
+        RGB3 sigma_s = getOptional(json, "sigma_s", RGB3(1.f));
         Json transform = getOptional(json, "transform", Json());
         TransformMatrix3D transformMatrix;
         Point3d pos = getOptional(transform, "position", Point3d(0.0));
@@ -30,7 +31,24 @@ std::shared_ptr<Medium> LoadMediumFromJson(const Json json) {
                                        Angle(rotate.z, Angle::EAngleType::ANGLE_DEG),
                                        EulerType::EULER_YZX);
 
-        return std::make_shared<HeterogeneousMedium>(filepath, std::make_shared<IsotropicPhase>(), transformMatrix, sigmaScale);
+        return std::make_shared<HeterogeneousMedium>(filepath, std::make_shared<IsotropicPhase>(), transformMatrix, sigma_a, sigma_s);
+    } else if (medium_type == "null-scattering") {
+        std::string filepath = getOptional<std::string>(json, "filepath", "default");
+        RGB3 sigma_a = getOptional(json, "sigma_a", RGB3(1.f));
+        RGB3 sigma_s = getOptional(json, "sigma_s", RGB3(1.f));
+        Json transform = getOptional(json, "transform", Json());
+        TransformMatrix3D transformMatrix;
+        Point3d pos = getOptional(transform, "position", Point3d(0.0));
+        transformMatrix.setTranslate(pos.x, pos.y, pos.z);
+        Vec3d scale = getOptional(transform, "scale", Vec3d(1, 1, 1));
+        transformMatrix.setScale(scale.x, scale.y, scale.z);
+        Vec3d rotate = getOptional(transform, "rotation", Vec3d(0, 0, 0));
+        transformMatrix.setRotateEuler(Angle(rotate.x, Angle::EAngleType::ANGLE_DEG),
+                                       Angle(rotate.y, Angle::EAngleType::ANGLE_DEG),
+                                       Angle(rotate.z, Angle::EAngleType::ANGLE_DEG),
+                                       EulerType::EULER_YZX);
+
+        return std::make_shared<NullScatteringMedium>(filepath, std::make_shared<IsotropicPhase>(), transformMatrix, sigma_a, sigma_s);
     }
     return nullptr;
 }

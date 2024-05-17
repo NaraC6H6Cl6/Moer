@@ -1,27 +1,17 @@
-﻿/**
- * @file Heterogeneous.h
- * @author Chenxi Zhou
- * @brief
- * @version 0.1
- * @date 2023-08-16
- *
- * @copyright Copyright (c) 2023
- *
- */
-#pragma once
-#include <nanovdb/NanoVDB.h>
+﻿#pragma once
+
 #include <nanovdb/util/GridHandle.h>
 #include "Medium.h"
 #include <CoreLayer/Geometry/Matrix.h>
 using BufferT = nanovdb::HostBuffer;
 
-class HeterogeneousMedium : public Medium {
+class NullScatteringMedium : public Medium {
 public:
-    HeterogeneousMedium(std::string gridFilePath,
-                        std::shared_ptr<PhaseFunction> phase,
-                        TransformMatrix3D _transform,
-                        Spectrum _sigma_a,
-                        Spectrum _sigma_s);
+    NullScatteringMedium(std::string gridFilePath,
+                         std::shared_ptr<PhaseFunction> phase,
+                         TransformMatrix3D _transform,
+                         Spectrum _sigma_a,
+                         Spectrum _sigma_s);
 
     virtual bool sampleDistance(MediumSampleRecord *mRec,
                                 const Ray &ray,
@@ -36,7 +26,6 @@ public:
 
     virtual Spectrum evalEmittance(Point3d pos) const override;
 
-private:
 protected:
     float sampleFromGrid(Point3d index,
                          const nanovdb::FloatGrid *grid) const;
@@ -56,13 +45,6 @@ private:
     mutable TransformMatrix3D transformMatrix, invTransformMatrix;
     Vec3i minIndex, maxIndex;
     float voxelSize;
-    float sigmaScale;
-
-    // nanovdb::GridHandle<BufferT> densityGrid;
-    // nanovdb::GridHandle<BufferT> temperatureGrid;
-
-    // const nanovdb::FloatGrid *densityFloatGrid = nullptr;
-    // const nanovdb::FloatGrid *temperatureFloatGrid = nullptr;
 
     nanovdb::GridHandle<BufferT> densityGridBuffer, emissionGridBuffer;
     const nanovdb::FloatGrid *densityGrid = nullptr;
@@ -70,4 +52,5 @@ private:
 
     Spectrum sigma_a;
     Spectrum sigma_s;
+    Spectrum majorant;// 由于全局使用同一个majorant值，因此在介质密度极不均衡时会产生较大的方差。
 };

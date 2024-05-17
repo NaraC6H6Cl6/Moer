@@ -1,11 +1,11 @@
-/**
+﻿/**
  * @file VolPathIntegrator.h
  * @author Chenxi Zhou
  * @brief Path Integrator with volume
  * @version 0.1
  * @date 2022-09-22
- * 
- * @copyright NJUMeta (c) 2022 
+ *
+ * @copyright NJUMeta (c) 2022
  * www.njumeta.com
  */
 
@@ -64,9 +64,9 @@ public:
     std::shared_ptr<Medium> getTargetMedium(const Intersection &its,
                                             Vec3d wi) const;
 
-    Spectrum evalTransmittance(std::shared_ptr<Scene> scene,
-                               const Intersection &its,
-                               Point3d pointOnLight) const;
+    virtual Spectrum evalTransmittance(std::shared_ptr<Scene> scene,
+                                       const Intersection &its,
+                                       Point3d pointOnLight) const;
 
     Intersection fulfillScatteringPoint(const Point3d &position,
                                         const Normal3d &normal,

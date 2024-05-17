@@ -15,7 +15,8 @@
       "name" : "smoke",
       "type" : "heterogeneous",
       "filepath" : "models/smoke.nvdb",
-      "sigma_scale" : 10000,
+      "sigma_a" : [100, 100, 100],
+      "sigma_s" : [100, 100, 100],
       "transform" : {
         "position" : [0, 0.05, 0],
         "scale" : 0.03
