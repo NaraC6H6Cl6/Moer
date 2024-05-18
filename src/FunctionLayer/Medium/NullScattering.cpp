@@ -71,11 +71,11 @@ bool NullScatteringMedium::sampleDistance(MediumSampleRecord *mRec,
         mRec->scatterPoint = ray.at(distance);
 
         Point3d index = worldToIndex(mRec->scatterPoint);
-        Spectrum density = sampleFromGrid(index, densityGrid);
+        float density = sampleFromGrid(index, densityGrid);
 
         mRec->sigmaA = density * sigma_a;
         mRec->sigmaS = density * sigma_s;
-        mRec->sigmaN = majorant - density;
+        mRec->sigmaN = majorant - density * (sigma_a + sigma_s);
         mRec->tr = evalTransmittance(ray.origin, mRec->scatterPoint);
         // calculate pdf, i.e., sum of $1\n * \sigma_t^i e^{-\sigma_t^i * t}$.
         for (int i = 0; i < nSpectrumSamples; i++) {
@@ -87,11 +87,11 @@ bool NullScatteringMedium::sampleDistance(MediumSampleRecord *mRec,
         mRec->marchLength = its.t;
 
         Point3d index = worldToIndex(ray.at(its.t));
-        Spectrum density = sampleFromGrid(index, densityGrid);
+        float density = sampleFromGrid(index, densityGrid);
 
         mRec->sigmaA = density * sigma_a;
         mRec->sigmaS = density * sigma_s;
-        mRec->sigmaN = majorant - density;
+        mRec->sigmaN = majorant - density * (sigma_a + sigma_s);
         mRec->tr = evalTransmittance(ray.origin, its.position);
         // calculate discrete probility (instead of continuous probability density), i.e., sum of $1\n * e^{-\sigma_t^i * t_max}$.
         for (int i = 0; i < nSpectrumSamples; i++) {

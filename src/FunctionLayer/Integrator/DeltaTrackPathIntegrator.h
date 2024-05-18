@@ -53,5 +53,10 @@ public:
 
     virtual Spectrum evalTransmittance(std::shared_ptr<Scene> scene,
                                        const Intersection &its,
-                                       Point3d pointOnLight) const;
+                                       Point3d pointOnLight) const override;
+
+    virtual std::pair<std::optional<Intersection>, Spectrum>
+    intersectIgnoreSurface(std::shared_ptr<Scene> scene,
+                           const Ray &ray,
+                           std::shared_ptr<Medium> medium) const override;
 };

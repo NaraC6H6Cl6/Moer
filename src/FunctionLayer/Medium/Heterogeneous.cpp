@@ -203,7 +203,7 @@ bool HeterogeneousMedium::sampleDistance(MediumSampleRecord *mRec, const Ray &ra
             mRec->sigmaA = sigma_a * density;
             mRec->sigmaS = sigma_s * density;
             mRec->tr = Spectrum(fm::exp(-thick));
-            mRec->pdf = mRec->tr * density;// TODO
+            mRec->pdf = mRec->tr * (sigma_a + sigma_s) * density;// TODO
 
             return true;
         }

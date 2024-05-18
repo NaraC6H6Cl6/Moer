@@ -1,11 +1,11 @@
-/**
+﻿/**
  * @file Film.cpp
  * @author Zhimin Fan
  * @brief The class that records ray sampling results. Just like old camera exposures!
  * @version 0.1
  * @date 2022-05-31
  *
- * @copyright NJUMeta (c) 2022 
+ * @copyright NJUMeta (c) 2022
  * www.njumeta.com
  *
  */
@@ -30,7 +30,7 @@ RGB3 Film::getRGB(const Point2i &p) {
 void Film::deposit(const Point2i &p, const Spectrum &s) {
     // ! A temp implementation
     // ignore filter now
-    if(s.hasNaN() || s.luminance()<0){
+    if (s.hasNaN() || s.luminance() < 0) {
         std::runtime_error("Invalid spectrum");
     }
     int id = p.y * resolution.x + p.x;
@@ -40,14 +40,14 @@ void Film::deposit(const Point2i &p, const Spectrum &s) {
 
 void Film::save(const std::string &path) {
     // ! A temp implementation
-    std::ofstream ofs("render_result.txt");
+    // std::ofstream ofs("render_result.txt");
     for (int i = 0; i < resolution.y; i++) {
         for (int j = 0; j < resolution.x; j++) {
             int id = i * resolution.x + j;
             Spectrum value = sumValues[id] / sumWeights[id];
             image->setColorAt(Point2i(j, i), value);
             // for debug
-            ofs << j << " " << i << " " << value[0] << " " << value[1] << " " << value[2] << " " << std::endl;
+            // ofs << j << " " << i << " " << value[0] << " " << value[1] << " " << value[2] << " " << std::endl;
         }
     }
     image->saveTo(path);

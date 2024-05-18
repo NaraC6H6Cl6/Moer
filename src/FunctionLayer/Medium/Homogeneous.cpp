@@ -25,6 +25,7 @@ bool HomogeneousMedium::sampleDistance(MediumSampleRecord *mRec,
         mRec->scatterPoint = ray.at(dist);
         mRec->sigmaA = mSigmaA;
         mRec->sigmaS = mSigmaS;
+        mRec->sigmaN = Spectrum{0};
         mRec->tr = evalTransmittance(ray.origin, mRec->scatterPoint);
         // calculate pdf, i.e., sum of $1\n * \sigma_t^i e^{-\sigma_t^i * t}$.
         for (int i = 0; i < nSpectrumSamples; i++) {
@@ -36,6 +37,7 @@ bool HomogeneousMedium::sampleDistance(MediumSampleRecord *mRec,
         mRec->marchLength = its.t;
         mRec->sigmaA = mSigmaA;
         mRec->sigmaS = mSigmaS;
+        mRec->sigmaN = Spectrum{0};
         mRec->tr = evalTransmittance(ray.origin, its.position);
         // calculate discrete probility (instead of continuous probability density), i.e., sum of $1\n * e^{-\sigma_t^i * t_max}$.
         for (int i = 0; i < nSpectrumSamples; i++) {

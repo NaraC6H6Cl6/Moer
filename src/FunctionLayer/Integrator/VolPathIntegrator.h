@@ -72,7 +72,7 @@ public:
                                         const Normal3d &normal,
                                         std::shared_ptr<Medium> medium);
 
-    std::pair<std::optional<Intersection>, Spectrum>
+    virtual std::pair<std::optional<Intersection>, Spectrum>
     intersectIgnoreSurface(std::shared_ptr<Scene> scene,
                            const Ray &ray,
                            std::shared_ptr<Medium> medium) const;

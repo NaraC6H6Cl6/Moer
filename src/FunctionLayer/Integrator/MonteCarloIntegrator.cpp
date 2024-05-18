@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file MonteCarloIntegrator.h
  * @author Zhimin Fan
  * edited by orbitchen at 2022-7-7: apply multithread acceleration and tile generator.
@@ -6,7 +6,7 @@
  * @version 0.1
  * @date 2022-05-06
  *
- * @copyright NJUMeta (c) 2022 
+ * @copyright NJUMeta (c) 2022
  * www.njumeta.com
  *
  */
@@ -29,11 +29,11 @@ MonteCarloIntegrator::MonteCarloIntegrator(
 
 void MonteCarloIntegrator::renderPerThread(std::shared_ptr<Scene> scene) {
     /**
-   * @warning Other part of Integrator uses the original sampler
-   *          so I have to fill its vectors here.
-   *          In fact every time a fresh sampler is needed we should
-   *          use Sampler::clone() to get one.
-   */
+     * @warning Other part of Integrator uses the original sampler
+     *          so I have to fill its vectors here.
+     *          In fact every time a fresh sampler is needed we should
+     *          use Sampler::clone() to get one.
+     */
     static int tileFinished = 0;
 
     sampler->startPixel({0, 0});
@@ -50,7 +50,7 @@ void MonteCarloIntegrator::renderPerThread(std::shared_ptr<Scene> scene) {
             const auto &cam = *this->camera;
             /**
              * @bug Sampler is NOT designed for multi-threads, need copy for each thread.
-             *      Sampler::clone() will return a Sampler copy, only with same sampling 
+             *      Sampler::clone() will return a Sampler copy, only with same sampling
              *      strategy, random numbers are not guaranteed to be identical.
              */
             // sampler->startPixel(pixelPosition);
