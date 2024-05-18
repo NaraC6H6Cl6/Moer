@@ -25,7 +25,6 @@ Spectrum DeltaTrackPathIntegrator::Li(const Ray &initialRay,
     const double eps = 1e-4;
     int nBounces = 0;
     bool isSpecularBounce = false;
-    bool atMediumBoundary = false;
 
     Ray ray = initialRay;
     std::shared_ptr<Medium> medium = nullptr;
@@ -42,13 +41,22 @@ Spectrum DeltaTrackPathIntegrator::Li(const Ray &initialRay,
 
     while (true) {
 
-        if (T.isBlack()) {
-            break;
+        if ((T / pathPdf).average() < 0x1p-24) {
+            return L;
+        }
+
+        if (T.average() > 0x1p24 || pathPdf.average() > 0x1p24 || neePdf.average() > 0x1p24) {
+            T *= 0x1p-24;
+            pathPdf *= 0x1p-24;
+            neePdf *= 0x1p-24;
+        } else if (T.average() < 0x1p-24 || pathPdf.average() < 0x1p-24 || neePdf.average() < 0x1p-24) {
+            T *= 0x1p24;
+            pathPdf *= 0x1p24;
+            neePdf *= 0x1p24;
         }
 
         MediumSampleRecord mRec;
-        if (medium && !atMediumBoundary) {
-            atMediumBoundary = !medium->sampleDistance(&mRec, ray, itsOpt.value(), sampler->sample2D());
+        if (medium && medium->sampleDistance(&mRec, ray, itsOpt.value(), sampler->sample2D())) {
 
             //* delta tracking
 
@@ -107,12 +115,16 @@ Spectrum DeltaTrackPathIntegrator::Li(const Ray &initialRay,
                 if (nBounces > nPathLengthLimit || !itsOpt.has_value()) {
                     break;
                 }
+                double pSurvive = russianRoulette(T / pathPdf, nBounces);
+                if (randFloat() > pSurvive) {
+                    break;
+                }
+                T /= pSurvive;
                 continue;
 
             } else {
                 // null scattering
-                ray.origin = mRec.scatterPoint + ray.direction * eps;
-                ray.timeMax -= mRec.marchLength;
+                ray = Ray{mRec.scatterPoint + ray.direction * eps, ray.direction};
                 itsOpt.value().t -= mRec.marchLength;
                 T *= mRec.sigmaN * mRec.tr;
                 pathPdf *= mRec.sigmaN * mRec.tr;
@@ -124,7 +136,20 @@ Spectrum DeltaTrackPathIntegrator::Li(const Ray &initialRay,
 
             auto its = itsOpt.value();
             its.medium = medium;
-            atMediumBoundary = false;
+
+            if (medium) {
+                T *= evalTransmittance(scene, its, mRec.scatterPoint);
+            }
+
+            if (its.material->getBxDF(its)->isNull()) {
+                medium = getTargetMedium(its, ray.direction);
+                ray = Ray{its.position + eps * ray.direction, ray.direction};
+                itsOpt = scene->intersect(ray);
+                if (!itsOpt) {
+                    break;
+                }
+                continue;
+            }
 
             //* Direct Illumination
             for (int i = 0; i < nDirectLightSamples; ++i) {
@@ -138,21 +163,11 @@ Spectrum DeltaTrackPathIntegrator::Li(const Ray &initialRay,
                 }
             }
 
-            if (its.material->getBxDF(its)->isNull()) {
-                medium = getTargetMedium(its, ray.direction);
-                ray = Ray{its.position + eps * ray.direction, ray.direction};
-                itsOpt = scene->intersect(ray);
-                if (!itsOpt) {
-                    break;
-                }
-                continue;
-            }
-
             //* ----- BSDF Sampling -----
             PathIntegratorLocalRecord sampleScatterRecord = sampleScatter(its, ray);
             isSpecularBounce = sampleScatterRecord.isDelta;
             if (sampleScatterRecord.f.isBlack()) {
-                break;
+                return L;
             }
             T *= sampleScatterRecord.f;
             pathPdf *= sampleScatterRecord.pdf;
@@ -176,16 +191,21 @@ Spectrum DeltaTrackPathIntegrator::Li(const Ray &initialRay,
             if (nBounces > nPathLengthLimit || !itsOpt.has_value()) {
                 break;
             }
+            double pSurvive = russianRoulette(T / pathPdf, nBounces);
+            if (randFloat() > pSurvive) {
+                break;
+            }
+            T /= pSurvive;
         }
     }
     // Accumulate contributions from infinite light sources
-    evalLightRecord = evalEnvLights(scene, ray);
+    evalLightRecord = evalEmittance(scene, itsOpt, ray);
     if (!evalLightRecord.f.isBlack()) {
         if (isSpecularBounce) {
             L += T * evalLightRecord.f / pathPdf.average();
         } else {
             neePdf *= evalLightRecord.pdf;
-            L += T * evalLightRecord.f / (pathPdf + neePdf).average();
+            L += T * evalLightRecord.f / (pathPdf + neePdf).average() / 2;
         }
     }
     return L;
@@ -212,13 +232,12 @@ Spectrum DeltaTrackPathIntegrator::evalTransmittance(std::shared_ptr<Scene> scen
                 itsTemp.t = (pointOnLight - shadowRay.origin).length();
                 MediumSampleRecord mRec;
                 while (medium->sampleDistance(&mRec, shadowRay, itsTemp, sampler->sample2D())) {
-                    // T *= (pN + tr * (pA + pS))
-                    T *= (mRec.sigmaN + mRec.tr * (mRec.sigmaA + mRec.sigmaS)) / (mRec.sigmaA + mRec.sigmaS + mRec.sigmaN);
+                    // T *= pN
+                    T *= mRec.sigmaN / (mRec.sigmaA + mRec.sigmaS + mRec.sigmaN);
                     shadowRay.origin = mRec.scatterPoint;
                     shadowRay.timeMax -= mRec.marchLength;
                     itsTemp.t -= mRec.marchLength;
                 }
-                T *= (mRec.sigmaN + mRec.tr * (mRec.sigmaA + mRec.sigmaS)) / (mRec.sigmaA + mRec.sigmaS + mRec.sigmaN);
                 return T;
             }
 
@@ -228,13 +247,11 @@ Spectrum DeltaTrackPathIntegrator::evalTransmittance(std::shared_ptr<Scene> scen
 
             MediumSampleRecord mRec;
             while (medium->sampleDistance(&mRec, shadowRay, itsOpt.value(), sampler->sample2D())) {
-                T *= (mRec.sigmaN + mRec.tr * (mRec.sigmaA + mRec.sigmaS)) / (mRec.sigmaA + mRec.sigmaS + mRec.sigmaN);
+                T *= mRec.sigmaN / (mRec.sigmaA + mRec.sigmaS + mRec.sigmaN);
                 shadowRay.origin = mRec.scatterPoint;
                 shadowRay.timeMax -= mRec.marchLength;
                 itsOpt.value().t -= mRec.marchLength;
             }
-
-            T *= (mRec.sigmaN + mRec.tr * (mRec.sigmaA + mRec.sigmaS)) / (mRec.sigmaA + mRec.sigmaS + mRec.sigmaN);
             medium = getTargetMedium(*itsOpt, shadowRay.direction);
             shadowRay.origin = itsOpt->position;
             shadowRay.timeMax -= itsOpt->t;
@@ -289,14 +306,14 @@ DeltaTrackPathIntegrator::intersectIgnoreSurface(std::shared_ptr<Scene> scene,
                     // ratio tracking
                     Intersection itsTemp = testRayIts;
                     MediumSampleRecord mRec;
-                    while (medium->sampleDistance(&mRec, marchRay, itsTemp, sampler->sample2D())) {
-                        // T *= (pN + tr * (pA + pS))
-                        T *= (mRec.sigmaN + mRec.tr * (mRec.sigmaA + mRec.sigmaS)) / (mRec.sigmaA + mRec.sigmaS + mRec.sigmaN);
+                    while (currentMedium->sampleDistance(&mRec, marchRay, itsTemp, sampler->sample2D())) {
+                        // T *= pN
+                        T *= mRec.sigmaN / (mRec.sigmaA + mRec.sigmaS + mRec.sigmaN);
                         marchRay.origin = mRec.scatterPoint;
                         marchRay.timeMax -= mRec.marchLength;
                         itsTemp.t -= mRec.marchLength;
                     }
-                    T *= (mRec.sigmaN + mRec.tr * (mRec.sigmaA + mRec.sigmaS)) / (mRec.sigmaA + mRec.sigmaS + mRec.sigmaN);
+                    T *= mRec.sigmaN / (mRec.sigmaA + mRec.sigmaS + mRec.sigmaN);
                 }
                 return {testRayItsOpt, T};
             }
@@ -307,14 +324,14 @@ DeltaTrackPathIntegrator::intersectIgnoreSurface(std::shared_ptr<Scene> scene,
             // ratio tracking
             Intersection itsTemp = testRayIts;
             MediumSampleRecord mRec;
-            while (medium->sampleDistance(&mRec, marchRay, itsTemp, sampler->sample2D())) {
-                // T *= (pN + tr * (pA + pS))
-                T *= (mRec.sigmaN + mRec.tr * (mRec.sigmaA + mRec.sigmaS)) / (mRec.sigmaA + mRec.sigmaS + mRec.sigmaN);
+            while (currentMedium->sampleDistance(&mRec, marchRay, itsTemp, sampler->sample2D())) {
+                // T *= pN
+                T *= mRec.sigmaN / (mRec.sigmaA + mRec.sigmaS + mRec.sigmaN);
                 marchRay.origin = mRec.scatterPoint;
                 marchRay.timeMax -= mRec.marchLength;
                 itsTemp.t -= mRec.marchLength;
             }
-            T *= (mRec.sigmaN + mRec.tr * (mRec.sigmaA + mRec.sigmaS)) / (mRec.sigmaA + mRec.sigmaS + mRec.sigmaN);
+            T *= mRec.sigmaN / (mRec.sigmaA + mRec.sigmaS + mRec.sigmaN);
         }
 
         // update medium

@@ -35,6 +35,7 @@ bool HomogeneousMedium::sampleDistance(MediumSampleRecord *mRec,
     } else {
         // sampled a point on object boundary (surface).
         mRec->marchLength = its.t;
+        mRec->scatterPoint = ray.at(its.t);
         mRec->sigmaA = mSigmaA;
         mRec->sigmaS = mSigmaS;
         mRec->sigmaN = Spectrum{0};

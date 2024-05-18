@@ -7,6 +7,7 @@ bool BeerslawMedium::sampleDistance(MediumSampleRecord *mRec,
     //* No scattering, only absorbtion
 
     mRec->marchLength = its.t;
+    mRec->scatterPoint = ray.at(its.t);
     mRec->pdf = 1;
     mRec->sigmaA = mDensity;
     mRec->tr = evalTransmittance(ray.origin, its.position);

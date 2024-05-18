@@ -85,6 +85,7 @@ bool NullScatteringMedium::sampleDistance(MediumSampleRecord *mRec,
     } else {
         // sampled a point on object boundary (surface).
         mRec->marchLength = its.t;
+        mRec->scatterPoint = ray.at(its.t);
 
         Point3d index = worldToIndex(ray.at(its.t));
         float density = sampleFromGrid(index, densityGrid);
